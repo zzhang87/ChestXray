@@ -141,6 +141,9 @@ def main():
 	num_samples["val"] = {key : len(value) for key, value in val_list.items()}
 	num_samples["test"] = len(test_list)
 
+	if not os.path.isdir(args.out_dir):
+		os.mkdir(args.out_dir)
+
 	with open(os.path.join(args.out_dir, "num_samples.json"), 'w') as f:
 		json.dump(num_samples, f)
 
