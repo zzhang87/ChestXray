@@ -166,7 +166,9 @@ def main(_):
     for key, value in label_map.items():
       pred = predictions[:,int(key)]
       label = labels[:,int(key)]
-
+      
+      if value == 'No Finding':
+        value = 'Healthy'
       metric_map['Precision_{}'.format(value)] = tf.metrics.precision_at_thresholds(label, pred, thresholds)
       metric_map['Recall_{}'.format(value)] = tf.metrics.recall_at_thresholds(label, pred, thresholds)
       metric_map['AUC_{}'.format(value)] = tf.metrics.auc(label, pred)
