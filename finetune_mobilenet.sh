@@ -27,7 +27,7 @@ module load Tensorflow-GPU/1.2.1-IGB-gcc-4.9.4-Python-3.6.1
 export PYTHONPATH="$PYTHONPATH:/home/n-z/tensorflow/models/research/slim"
 
 #-----------------Define Variables-------------------------------
-MODEL_NAME=resnet_v2_50
+MODEL_NAME=mobilenet_v1
 
 # Where the pre-trained ResNetV1-50 checkpoint is saved to.
 PRETRAINED_CHECKPOINT_DIR=/home/n-z/zzhang52/tensorflow/checkpoints/${MODEL_NAME}
@@ -55,7 +55,7 @@ EVAL_EVERY_EPOCH=3
 NUM_EPOCHS=$(( NUM_EPOCH / EVAL_EVERY_EPOCH ))
 NUM_EPOCHS_ALL=$(( NUM_EPOCH_ALL / EVAL_EVERY_EPOCH ))
 
-IMAGE_SIZE=299
+IMAGE_SIZE=244
 
 #-----------------------Execute Commands------------------------------
 

@@ -5,6 +5,7 @@ import sys
 import shutil
 import math
 import json
+import cv2
 import pandas as pd
 import numpy as np
 from random import shuffle
@@ -23,15 +24,20 @@ def convert_dataset(files, split_name, input_dir, output_dir, partition_id, part
         		'{}_{:03}-of-{:03}.tfrecord'.format(split_name, partition_id + 1, partition_num))
 
         	tfrecord_writer = tf.python_io.TFRecordWriter(output_path)
+        	f = open(os.path.join(output_dir,
+        		'{}_{:03}-of-{:03}.txt'.format(split_name, partition_id + 1, partition_num)), 'w')
         	for i, record in enumerate(files):
         		sys.stdout.write('\r>> Converting image {}/{} {} partition {}/{}'.format(
         						i + 1, len(files), split_name, partition_id + 1, partition_num))
         		sys.stdout.flush()
 
         		image, label = record
+
+        		f.write(image + '\n')
+
         		image_data = tf.gfile.FastGFile(os.path.join(input_dir, image), 'rb').read()
         		image = sess.run(decode_jpeg, feed_dict = {decode_jpeg_data: image_data})
-        		height, width = image.shape[0], image.shape[1]
+        		height, width, channels = image.shape[0], image.shape[1], image.shape[2]
         		example = dataset_utils.image_to_tfexample(image_data, b'png', height, width, list(label))
         		tfrecord_writer.write(example.SerializeToString())
 
@@ -39,6 +45,7 @@ def convert_dataset(files, split_name, input_dir, output_dir, partition_id, part
 
     sys.stdout.write('\n')
     sys.stdout.flush()
+    f.close()
 
 
 def extract(files, record, class_name_to_ids):

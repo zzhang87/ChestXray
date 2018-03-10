@@ -181,7 +181,7 @@ def main(_):
 
     # Print the summaries to screen.
     for name, value in names_to_values.items():
-      summary_name = 'eval/{}'.format(name)
+      summary_name = '{}/{}'.format(FLAGS.dataset_split_name, name)
       if 'AUC' in name or 'Loss' in name:
       	op = tf.summary.scalar(summary_name, value, collections=[])
       else:
