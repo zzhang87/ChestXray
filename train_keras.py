@@ -8,10 +8,12 @@ import PIL
 import pdb
 import argparse
 import math
+from shutil import rmtree
 import pandas as pd
 import tensorflow as tf
 
 import keras.backend as K
+from keras.callbacks import ProgbarLogger, TensorBoard, ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from keras.models import Model
 from keras.layers import Input, Dense
 from keras.optimizers import SGD
@@ -19,12 +21,13 @@ from keras.applications.inception_v3 import InceptionV3
 from keras.applications.mobilenet import MobileNet, preprocess_input
 from keras.preprocessing.image import ImageDataGenerator
 
-def create_model(name, image_size, num_class):
+def create_model(name, image_size, label_map):
 	model_map = {
 		'inception': InceptionV3,
 		'mobilenet': MobileNet
 	}
 
+	num_class = len(list(label_map.keys()))
 	base_model = model_map[name](include_top = False, input_shape = (image_size, image_size, 3), pooling = 'avg')
 	x = base_model.output
 	# x = Dense(base_model.output_shape[1], activation = 'relu')(x)
@@ -33,7 +36,12 @@ def create_model(name, image_size, num_class):
 	model = Model(inputs = base_model.input, outputs = predictions)
 
 	opt = SGD(lr = 0.01, decay = 1e-6, momentum = 0.9, nesterov = True)
-	model.compile(loss = 'binary_crossentropy', optimizer = opt, metrics = [AUC])
+
+	# metrics = {value: AUC(int(key)) for key, value in label_map.items()}
+
+	metrics = [AUC(i) for i in range(num_class)]
+
+	model.compile(loss = 'binary_crossentropy', optimizer = opt, metrics = metrics)
 
 	return model
 
@@ -69,12 +77,14 @@ def load_input(data, num_samples, num_class, image_size):
 
 	return X[:valid], Y[:valid]
 
-def AUC(labels, predictions):
-	score, up_opt = tf.metrics.auc(labels, predictions)
-	K.get_session().run(tf.local_variables_initializer())
-	with tf.control_dependencies([up_opt]):
-		score = tf.identity(score)
-	return score
+def AUC(index):
+	def auc(labels, predictions):
+		score, up_opt = tf.metrics.auc(labels[:,index], predictions[:,index])
+		K.get_session().run(tf.local_variables_initializer())
+		with tf.control_dependencies([up_opt]):
+			score = tf.identity(score)
+		return score
+	return auc
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -89,6 +99,12 @@ def main():
 	ap.add_argument('--num_epoch', type = int, default = 1)
 
 	args = ap.parse_args()
+
+	if os.path.isdir(args.train_dir):
+		rmtree(args.train_dir)
+
+	else:
+		os.mkdir(args.train_dir)
 
 	if args.model_name in ['inception']:
 		image_size = 299
@@ -130,12 +146,21 @@ def main():
 
 	gen_val = ImageDataGenerator(preprocessing_function = preprocess_input)
 
-	model = create_model(args.model_name, image_size, num_class)
+	model = create_model(args.model_name, image_size, label_map)
 
-	model.fit_generator(gen_train.flow(X, Y, batch_size = args.batch_size), epochs = args.num_epoch,
+	tensorbard = TensorBoard(args.train_dir)
+	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.8, patience = 5, mode = 'min')
+	earlystop = EarlyStopping(monitor = 'val_loss', min_delta = 1e-6, patience = 10, mode = 'min')
+	ckpt = ModelCheckpoint(os.path.join(args.train_dir, '{epoch:02d}-{val_loss:.2f}.hdf5'),
+				monitor = 'val_loss', save_best_only = True, mode = 'min')
+
+	history = model.fit_generator(gen_train.flow(X, Y, batch_size = args.batch_size), epochs = args.num_epoch,
 							steps_per_epoch = math.ceil(X.shape[0] / float(args.batch_size)),
 							validation_data = gen_val.flow(X_val, Y_val, batch_size = args.batch_size),
-							validation_steps = math.ceil(X_val.shape[0] / float(args.batch_size)))
+							validation_steps = math.ceil(X_val.shape[0] / float(args.batch_size)),
+							verbose = 2,
+							callbacks = [tensorbard, reducelr, earlystop, ckpt])
+
 
 if __name__ == "__main__":
 	main()
