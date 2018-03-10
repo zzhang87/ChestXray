@@ -52,8 +52,8 @@ BATCH_SIZE=64
 
 EVAL_EVERY_EPOCH=3
 
-NUM_EPOCHS=$(( NUM_EPOCH / EVAL_EVERY_EPOCH ))
-NUM_EPOCHS_ALL=$(( NUM_EPOCH_ALL / EVAL_EVERY_EPOCH ))
+NUM_EPOCHS=$(( NUM_EPOCHS / EVAL_EVERY_EPOCH ))
+NUM_EPOCHS_ALL=$(( NUM_EPOCHS_ALL / EVAL_EVERY_EPOCH ))
 
 IMAGE_SIZE=244
 
@@ -67,7 +67,7 @@ python train_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=${MODEL_NAME} \
   --preprocessing_name=inception \
-  --train_image_size=$IMAGE_SIZE} \
+  --train_image_size=${IMAGE_SIZE} \
   --checkpoint_path=${PRETRAINED_CHECKPOINT_DIR}/${MODEL_NAME}.ckpt \
   --checkpoint_exclude_scopes=${MODEL_NAME}/logits \
   --trainable_scopes=${MODEL_NAME}/logits \
@@ -97,7 +97,7 @@ python train_image_classifier.py \
   --checkpoint_exclude_scopes=${MODEL_NAME}/logits \
   --trainable_scopes=${MODEL_NAME}/logits \
   --num_epochs=${EVAL_EVERY_EPOCH} \
-  --batch_size=${$BATCH_SIZE} \
+  --batch_size=${BATCH_SIZE} \
   --learning_rate=0.001 \
   --save_interval_secs=0 \
   --save_summaries_secs=300 \
@@ -116,8 +116,8 @@ python eval_image_classifier.py \
   --dataset_dir=${DATASET_DIR} \
   --model_name=${MODEL_NAME} \
   --preprocessing_name=inception \
-  --eval_image_size={IMAGE_SIZE} \
-  --batch_size={$BATCH_SIZE}
+  --eval_image_size=${IMAGE_SIZE} \
+  --batch_size=${BATCH_SIZE}
 
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR} \
@@ -129,7 +129,7 @@ python eval_image_classifier.py \
   --model_name=${MODEL_NAME} \
   --preprocessing_name=inception \
   --eval_image_size=${IMAGE_SIZE} \
-  --batch_size={$BATCH_SIZE}
+  --batch_size=${BATCH_SIZE}
 
 # Check flag.
 FLAG="$(python early_stop.py --logdir ${TRAIN_DIR} --patience $PATIENCE)"
@@ -153,7 +153,7 @@ python train_image_classifier.py \
   --preprocessing_name=inception \
   --train_image_size=${IMAGE_SIZE} \
   --num_epochs=${EVAL_EVERY_EPOCH} \
-  --batch_size={$BATCH_SIZE} \
+  --batch_size=${BATCH_SIZE} \
   --learning_rate=0.001 \
   --save_interval_secs=0 \
   --save_summaries_secs=300 \
@@ -173,7 +173,7 @@ python eval_image_classifier.py \
   --model_name=${MODEL_NAME} \
   --preprocessing_name=inception \
   --eval_image_size=${IMAGE_SIZE} \
-  --batch_size={$BATCH_SIZE}
+  --batch_size=${BATCH_SIZE}
 
 python eval_image_classifier.py \
   --checkpoint_path=${TRAIN_DIR}/all \
@@ -185,7 +185,7 @@ python eval_image_classifier.py \
   --model_name=${MODEL_NAME} \
   --preprocessing_name=inception \
   --eval_image_size=${IMAGE_SIZE} \
-  --batch_size={$BATCH_SIZE}
+  --batch_size=${BATCH_SIZE}
 
 # Check flag.
 FLAG="$(python early_stop.py --logdir ${TRAIN_DIR}/all --patience $PATIENCE)"

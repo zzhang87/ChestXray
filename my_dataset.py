@@ -5,7 +5,7 @@ slim = tf.contrib.slim
 
 def binary_crossentropy(labels, predictions):
     losses = -labels * tf.log(predictions) - (1 - labels) * tf.log(1 - predictions)
-    losses = tf.reduce_sum(tf.reduce_mean(losses, axis = 1), name = 'binary_crossentropy')
+    losses = tf.reduce_mean(tf.reduce_sum(losses, axis = 1), name = 'binary_crossentropy')
 
     return losses
 
