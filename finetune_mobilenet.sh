@@ -34,6 +34,7 @@ PRETRAINED_CHECKPOINT_DIR=/home/n-z/zzhang52/tensorflow/checkpoints/${MODEL_NAME
 
 # Where the training (fine-tuned) checkpoint and logs will be saved to.
 TRAIN_DIR=/home/n-z/zzhang52/Insight/CXR/temp
+rm -rf $TRAIN_DIR
 
 # Where the dataset is saved to.
 DATASET_DIR=/home/n-z/zzhang52/Insight/CXR/small
@@ -44,7 +45,7 @@ PARTITION_NUM=1
 
 NUM_EPOCHS=400
 
-NUM_EPOSCH_ALL=200
+NUM_EPOCHS_ALL=200
 
 PATIENCE=100
 
