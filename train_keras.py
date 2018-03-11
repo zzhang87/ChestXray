@@ -1,5 +1,6 @@
 import keras 
 import numpy as np
+import pandas as pd
 import cv2
 import os
 import json
@@ -19,7 +20,7 @@ from keras.layers import Input, Dense
 from keras.optimizers import SGD
 from keras.applications.inception_v3 import InceptionV3
 from keras.applications.mobilenet import MobileNet, preprocess_input
-from keras.preprocessing.image import ImageDataGenerator
+from datagenerator import ImageDataGenerator
 
 def create_model(name, image_size, label_map):
 	model_map = {
@@ -40,6 +41,7 @@ def create_model(name, image_size, label_map):
 	# metrics = {value: AUC(int(key)) for key, value in label_map.items()}
 
 	metrics = [AUC(i) for i in range(num_class)]
+	metrics.append(mean_AUC(num_class))
 
 	model.compile(loss = 'binary_crossentropy', optimizer = opt, metrics = metrics)
 
@@ -77,6 +79,14 @@ def load_input(data, num_samples, num_class, image_size):
 
 	return X[:valid], Y[:valid]
 
+def load_filelist(directory, split_name, partition_id, partition_num):
+	path = os.path.join(directory, '{}_{:03}-of-{:03}.csv'.format(split_name, partition_id, partition_num))
+	df = pd.read_csv(path, delimiter = '\t', header = None, names = ['image', 'label'])
+
+	labels = [map(float, label[1:-1].split(' ')) for label in df['label']]
+
+	return df['image'].tolist(), labels
+
 def AUC(index):
 	def auc(labels, predictions):
 		score, up_opt = tf.metrics.auc(labels[:,index], predictions[:,index])
@@ -85,6 +95,22 @@ def AUC(index):
 			score = tf.identity(score)
 		return score
 	return auc
+
+def mean_AUC(num_class):
+	def mauc(labels, predictions):
+		scores = []
+		opts = []
+		for i in range(num_class):
+			score, up_opt = tf.metrics.auc(labels[:,i], predictions[:,i])
+			scores.append(score)
+			opts.append(up_opt)
+
+		score = tf.add_n(scores) / float(num_class)
+		K.get_session().run(tf.local_variables_initializer())
+		with tf.control_dependencies(opts):
+			score = tf.identity(score)
+		return score
+	return mauc
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -123,17 +149,9 @@ def main():
 	with open(os.path.join(args.data_dir, 'num_samples.json'), 'r') as f:
 		num_samples = json.load(f)
 
-	tfrecord = os.path.join(args.data_dir,
-			'{}_{:03}-of-{:03}.tfrecord'.format(args.split_name, args.partition_id, args.partition_num))
+	X_train, Y_train = load_filelist(args.data_dir, 'train', args.partition_id, args.partition_num)
 
-	X, Y = load_input(tfrecord, num_samples[args.split_name][str(args.partition_id - 1)],
-						num_class, image_size)
-
-	tfrecord = os.path.join(args.data_dir,
-			'val_{:03}-of-{:03}.tfrecord'.format(args.partition_id, args.partition_num))
-
-	X_val, Y_val = load_input(tfrecord, num_samples['val'][str(args.partition_id - 1)],
-						num_class, image_size)
+	X_val, Y_val = load_filelist(args.data_dir, 'val', args.partition_id, args.partition_num)
 
 	gen_train = ImageDataGenerator(rotation_range = 10,
 								width_shift_range = 0.1,
@@ -146,20 +164,33 @@ def main():
 
 	gen_val = ImageDataGenerator(preprocessing_function = preprocess_input)
 
+	# for x, y in gen_train.flow_from_list(x=X_train, y=Y_train, directory=args.image_dir,
+	# 						batch_size = args.batch_size, target_size=(image_size,image_size)):
+	# 	for i in range(x.shape[0]):
+	# 		img = x[i].astype(np.uint8)
+	# 		label = y[i]
+
+	# 		cv2.imshow("show", img)
+	# 		cv2.waitKey(600)
+	# 		cv2.destroyAllWindows()
+	# 		print(label)
+
 	model = create_model(args.model_name, image_size, label_map)
 
 	tensorbard = TensorBoard(args.train_dir)
-	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.8, patience = 5, mode = 'min')
-	earlystop = EarlyStopping(monitor = 'val_loss', min_delta = 1e-6, patience = 10, mode = 'min')
-	ckpt = ModelCheckpoint(os.path.join(args.train_dir, '{epoch:02d}-{val_loss:.2f}.hdf5'),
-				monitor = 'val_loss', save_best_only = True, mode = 'min')
+	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
+	earlystop = EarlyStopping(monitor = 'val_mauc', min_delta = 1e-6,
+								patience = args.num_epoch / 10, mode = 'max')
+	ckpt = ModelCheckpoint(os.path.join(args.train_dir, 'weights.{epoch:03d}-{val_mauc:.2f}.hdf5'),
+								monitor = 'val_mauc', save_best_only = True, mode = 'max')
 
-	history = model.fit_generator(gen_train.flow(X, Y, batch_size = args.batch_size), epochs = args.num_epoch,
-							steps_per_epoch = math.ceil(X.shape[0] / float(args.batch_size)),
-							validation_data = gen_val.flow(X_val, Y_val, batch_size = args.batch_size),
-							validation_steps = math.ceil(X_val.shape[0] / float(args.batch_size)),
-							verbose = 2,
-							callbacks = [tensorbard, reducelr, earlystop, ckpt])
+	history = model.fit_generator(gen_train.flow_from_list(x=X_train, y=Y_train, directory=args.image_dir,
+							batch_size = args.batch_size, target_size=(image_size,image_size)), epochs = args.num_epoch,
+							steps_per_epoch = math.ceil(len(X_train) / float(args.batch_size)),
+							validation_data = gen_val.flow_from_list(x=X_val, y=Y_val, directory=args.image_dir,
+							batch_size = args.batch_size, target_size=(image_size,image_size)),
+							validation_steps = math.ceil(len(X_val) / float(args.batch_size)),
+							verbose = 2, callbacks = [tensorbard, reducelr, earlystop, ckpt])
 
 
 if __name__ == "__main__":
