@@ -18,14 +18,18 @@ from keras.callbacks import ProgbarLogger, TensorBoard, ReduceLROnPlateau, Early
 from keras.models import Model
 from keras.layers import Input, Dense
 from keras.optimizers import SGD
-from keras.applications.inception_v3 import InceptionV3
-from keras.applications.mobilenet import MobileNet, preprocess_input
+from keras.applications.inception_v3 import InceptionV3, preprocess_input as inception_pre
+from keras.applications.mobilenet import MobileNet, preprocess_input as mobilenet_pre
+from keras.applications.resnet50 import ResNet50, preprocess_input as resnet_pre
+from keras.applications.densenet import DenseNet121, preprocess_input as densnet_pre
 from datagenerator import ImageDataGenerator
 
 def create_model(name, image_size, label_map):
 	model_map = {
 		'inception': InceptionV3,
-		'mobilenet': MobileNet
+		'mobilenet': MobileNet,
+		'densenet': DenseNet121,
+		'resnet': ResNet50
 	}
 
 	num_class = len(list(label_map.keys()))
@@ -115,7 +119,6 @@ def mean_AUC(num_class):
 def main():
 	ap = argparse.ArgumentParser()
 	ap.add_argument('--data_dir')
-	ap.add_argument('--split_name', default = 'train')
 	ap.add_argument('--image_dir')
 	ap.add_argument('--partition_id', type = int, default = 1)
 	ap.add_argument('--partition_num', type = int, default = 1)
@@ -153,6 +156,13 @@ def main():
 
 	X_val, Y_val = load_filelist(args.data_dir, 'val', args.partition_id, args.partition_num)
 
+	preprocess_input = {
+		'inception': inception_pre,
+		'resnet': resnet_pre,
+		'mobilenet': mobilenet_pre,
+		'densenet': densnet_pre
+	}
+
 	gen_train = ImageDataGenerator(rotation_range = 10,
 								width_shift_range = 0.1,
 								height_shift_range = 0.1,
@@ -160,9 +170,9 @@ def main():
 								fill_mode = 'constant',
 								cval = 0,
 								horizontal_flip = True,
-								preprocessing_function = preprocess_input)
+								preprocessing_function = preprocess_input[args.model_name])
 
-	gen_val = ImageDataGenerator(preprocessing_function = preprocess_input)
+	gen_val = ImageDataGenerator(preprocessing_function = preprocess_input[args.model_name])
 
 	# for x, y in gen_train.flow_from_list(x=X_train, y=Y_train, directory=args.image_dir,
 	# 						batch_size = args.batch_size, target_size=(image_size,image_size)):
@@ -179,7 +189,7 @@ def main():
 
 	tensorbard = TensorBoard(args.train_dir)
 	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
-	earlystop = EarlyStopping(monitor = 'val_mauc', min_delta = 1e-6,
+	earlystop = EarlyStopping(monitor = 'val_mauc', min_delta = 1e-4,
 								patience = args.num_epoch / 10, mode = 'max')
 	ckpt = ModelCheckpoint(os.path.join(args.train_dir, 'weights.{epoch:03d}-{val_mauc:.2f}.hdf5'),
 								monitor = 'val_mauc', save_best_only = True, mode = 'max')
