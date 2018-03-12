@@ -46,10 +46,8 @@ def create_model(model_config, image_size, label_map):
 		optimizer = SGD(lr = model_config['initial_lr'], decay = 1e-6, momentum = 0.9, nesterov = True)
 	elif opt == 'adam':
 		optimizer = Adam(lr = model_config['initial_lr'], decay = 1e-6)
-	elif opt == 'rmsprop':
-		optimizer = RMSprop(lr = model_config['initial_lr'], decay = 1e-6)
 	else:
-		raise(Error('Wrong optimizer input. Need to be one of: SGD, adam, and rmsprop.'))
+		optimizer = RMSprop(lr = model_config['initial_lr'], decay = 1e-6)
 
 	# metrics = {value: AUC(int(key)) for key, value in label_map.items()}
 
@@ -103,13 +101,17 @@ def main():
 					help = 'Number of partitions.')
 	ap.add_argument('--train_dir', help = 'Directory the trained model and events will be saved to.')
 	ap.add_argument('--model_name', default = 'inception',
-					help = 'Network architecture to use. One of inception, resnet, densenet, mobilenet.')
+					help = 'Network architecture to use. One of inception, resnet, densenet, or mobilenet.')
 	ap.add_argument('--batch_size', type = int, default = 32)
 	ap.add_argument('--num_epoch', type = int, default = 1)
-	ap.add_argument('--optimizer', default = 'SGD', help = 'Optimizer to train the model.')
+	ap.add_argument('--optimizer', default = 'SGD',
+					help = 'Optimizer to train the model. One of SGD, adam, or rmsprop.')
 	ap.add_argument('--initial_lr', type = float, default = 1e-2, help = 'Initial learning rate.')
 
 	args = ap.parse_args()
+
+	assert(args.model_name in ['inception', 'resnet', 'mobilenet', 'densenet'])
+	assert(args.optimizer in ['SGD', 'adam', 'rmsprop'])
 
 	if os.path.isdir(args.train_dir):
 		rmtree(args.train_dir)
@@ -119,11 +121,8 @@ def main():
 	if args.model_name in ['inception']:
 		image_size = 299
 
-	elif args.model_name in ['resnet', 'mobilenet', 'densenet']:
-		image_size = 224
-
 	else:
-		raise(Error('Unrecognized model name'))
+		image_size = 224
 
 	with open(os.path.join(args.data_dir, 'label_map.json'), 'r') as f:
 		label_map = json.load(f)
