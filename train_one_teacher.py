@@ -17,14 +17,14 @@ import keras.backend as K
 from keras.callbacks import ProgbarLogger, TensorBoard, ReduceLROnPlateau, EarlyStopping, ModelCheckpoint
 from keras.models import Model
 from keras.layers import Input, Dense
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adam, RMSprop
 from keras.applications.inception_v3 import InceptionV3, preprocess_input as inception_pre
 from keras.applications.mobilenet import MobileNet, preprocess_input as mobilenet_pre
 from keras.applications.resnet50 import ResNet50, preprocess_input as resnet_pre
 from keras.applications.densenet import DenseNet121, preprocess_input as densnet_pre
 from datagenerator import ImageDataGenerator
 
-def create_model(name, image_size, label_map):
+def create_model(model_config, image_size, label_map):
 	model_map = {
 		'inception': InceptionV3,
 		'mobilenet': MobileNet,
@@ -33,21 +33,30 @@ def create_model(name, image_size, label_map):
 	}
 
 	num_class = len(list(label_map.keys()))
-	base_model = model_map[name](include_top = False, input_shape = (image_size, image_size, 3), pooling = 'avg')
+	base_model = model_map[model_config['model_name']](include_top = False,
+					input_shape = (image_size, image_size, 3), pooling = 'avg')
 	x = base_model.output
 	# x = Dense(base_model.output_shape[1], activation = 'relu')(x)
 	predictions = Dense(num_class, activation = 'sigmoid')(x)
 
 	model = Model(inputs = base_model.input, outputs = predictions)
 
-	opt = SGD(lr = 0.01, decay = 1e-6, momentum = 0.9, nesterov = True)
+	opt = model_config['optimizer']
+	if opt == 'SGD':
+		optimizer = SGD(lr = model_config['initial_lr'], decay = 1e-6, momentum = 0.9, nesterov = True)
+	elif opt == 'adam':
+		optimizer = Adam(lr = model_config['initial_lr'], decay = 1e-6)
+	elif opt == 'rmsprop':
+		optimizer = RMSprop(lr = model_config['initial_lr'], decay = 1e-6)
+	else:
+		raise(Error('Wrong optimizer input. Need to be one of: SGD, adam, and rmsprop.'))
 
 	# metrics = {value: AUC(int(key)) for key, value in label_map.items()}
 
 	metrics = [AUC(i) for i in range(num_class)]
 	metrics.append(mean_AUC(num_class))
 
-	model.compile(loss = 'binary_crossentropy', optimizer = opt, metrics = metrics)
+	model.compile(loss = 'binary_crossentropy', optimizer = optimizer, metrics = metrics)
 
 	return model
 
@@ -97,6 +106,8 @@ def main():
 					help = 'Network architecture to use. One of inception, resnet, densenet, mobilenet.')
 	ap.add_argument('--batch_size', type = int, default = 32)
 	ap.add_argument('--num_epoch', type = int, default = 1)
+	ap.add_argument('--optimizer', default = 'SGD', help = 'Optimizer to train the model.')
+	ap.add_argument('--initial_lr', type = float, default = 1e-2, help = 'Initial learning rate.')
 
 	args = ap.parse_args()
 
@@ -155,7 +166,14 @@ def main():
 	# 		cv2.destroyAllWindows()
 	# 		print(label)
 
-	model = create_model(args.model_name, image_size, label_map)
+	model_config = {'model_name': args.model_name,
+					'optimizer': args.optimizer,
+					'initial_lr': args.initial_lr}
+
+	with open(os.path.join(args.train_dir, 'model_config.json'), 'w') as f:
+		json.dump(model_config, f)
+
+	model = create_model(model_config, image_size, label_map)
 
 	tensorbard = TensorBoard(args.train_dir)
 	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
