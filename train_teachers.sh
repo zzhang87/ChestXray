@@ -38,8 +38,6 @@ DATA_DIR=/home/paperspace/Insight/CXR/list_all
 
 IMAGE_DIR=/home/paperspace/Insight/CXR/images
 
-PARTITION_ID=1
-
 PARTITION_NUM=1
 
 NUM_EPOCH=100
@@ -55,7 +53,7 @@ do
 python train_one_teacher.py \
   --data_dir=${DATA_DIR} \
   --image_dir=${IMAGE_DIR} \
-  --train_dir=$TRAIN_DIR}/teacher_${teacher} \
+  --train_dir=${TRAIN_DIR}/teacher_${teacher} \
   --partition_id=${teacher} \
   --partition_num=${PARTITION_NUM} \
   --batch_size=${BATCH_SIZE} \
