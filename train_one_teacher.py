@@ -118,12 +118,15 @@ def mean_AUC(num_class):
 
 def main():
 	ap = argparse.ArgumentParser()
-	ap.add_argument('--data_dir')
-	ap.add_argument('--image_dir')
-	ap.add_argument('--partition_id', type = int, default = 1)
-	ap.add_argument('--partition_num', type = int, default = 1)
-	ap.add_argument('--train_dir')
-	ap.add_argument('--model_name', default = 'inception')
+	ap.add_argument('--data_dir', help = 'Directory to the file lists and labels.')
+	ap.add_argument('--image_dir', help = 'Directory to the raw images.')
+	ap.add_argument('--partition_id', type = int, default = 1,
+					help = 'Partition index (1-based).')
+	ap.add_argument('--partition_num', type = int, default = 1,
+					help = 'Number of partitions.')
+	ap.add_argument('--train_dir', help = 'Directory the trained model and events will be saved to.')
+	ap.add_argument('--model_name', default = 'inception',
+					help = 'Network architecture to use. One of inception, resnet, densenet, mobilenet.')
 	ap.add_argument('--batch_size', type = int, default = 32)
 	ap.add_argument('--num_epoch', type = int, default = 1)
 
@@ -132,8 +135,7 @@ def main():
 	if os.path.isdir(args.train_dir):
 		rmtree(args.train_dir)
 
-	else:
-		os.mkdir(args.train_dir)
+	os.mkdir(args.train_dir)
 
 	if args.model_name in ['inception']:
 		image_size = 299
