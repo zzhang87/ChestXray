@@ -51,38 +51,6 @@ def create_model(name, image_size, label_map):
 
 	return model
 
-def load_input(data, num_samples, num_class, image_size):
-	it = tf.python_io.tf_record_iterator(path = data)
-
-	X = np.empty((num_samples, image_size, image_size, 3))
-	Y = np.empty((num_samples, num_class))
-
-	valid = 0
-
-	for record in it:
-		example = tf.train.Example()
-		example.ParseFromString(record)
-		labels = map(int, example.features.feature['image/class/label'].int64_list.value)
-
-		encoded_img = example.features.feature['image/encoded'].bytes_list.value[0]
-
-		encoded_img_io = io.BytesIO(encoded_img)
-		img = PIL.Image.open(encoded_img_io)
-
-		img = np.array(img)
-
-		if (img.ndim != 2):
-			continue
-
-		img3d = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-		img3d = cv2.resize(img3d, (image_size, image_size))
-
-		X[valid] = img3d
-		Y[valid] = np.array(labels)
-		valid += 1
-
-	return X[:valid], Y[:valid]
-
 def load_filelist(directory, split_name, partition_id, partition_num):
 	path = os.path.join(directory, '{}_{:03}-of-{:03}.csv'.format(split_name, partition_id, partition_num))
 	df = pd.read_csv(path, delimiter = '\t', header = None, names = ['image', 'label'])
