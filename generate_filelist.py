@@ -10,43 +10,6 @@ import cv2
 import pandas as pd
 import numpy as np
 from random import shuffle
-from datasets import dataset_utils
-import tensorflow as tf
-
-def convert_dataset(files, split_name, input_dir, output_dir, partition_id, partition_num):
-    assert split_name in ['train', 'val', 'test']
-
-    with tf.Graph().as_default():
-        decode_jpeg_data = tf.placeholder(dtype=tf.string)
-        decode_jpeg = tf.image.decode_image(decode_jpeg_data, channels=3)
-
-        with tf.Session('') as sess:
-        	output_path = os.path.join(output_dir,
-        		'{}_{:03}-of-{:03}.tfrecord'.format(split_name, partition_id + 1, partition_num))
-
-        	tfrecord_writer = tf.python_io.TFRecordWriter(output_path)
-        	f = open(os.path.join(output_dir,
-        		'{}_{:03}-of-{:03}.txt'.format(split_name, partition_id + 1, partition_num)), 'w')
-        	for i, record in enumerate(files):
-        		sys.stdout.write('\r>> Converting image {}/{} {} partition {}/{}'.format(
-        						i + 1, len(files), split_name, partition_id + 1, partition_num))
-        		sys.stdout.flush()
-
-        		image, label = record
-
-        		f.write(image + '\n')
-
-        		image_data = tf.gfile.FastGFile(os.path.join(input_dir, image), 'rb').read()
-        		image = sess.run(decode_jpeg, feed_dict = {decode_jpeg_data: image_data})
-        		height, width, channels = image.shape[0], image.shape[1], image.shape[2]
-        		example = dataset_utils.image_to_tfexample(image_data, b'png', height, width, list(label))
-        		tfrecord_writer.write(example.SerializeToString())
-
-        	tfrecord_writer.close()
-
-    sys.stdout.write('\n')
-    sys.stdout.flush()
-    f.close()
 
 def save_list(filelist, split_name, out_dir, partition_id, partition_num):
 	filename = '{}_{:03}-of-{:03}.csv'.format(split_name, partition_id + 1, partition_num)
