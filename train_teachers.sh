@@ -29,20 +29,20 @@ MODEL_NAME=mobilenet
 # Where the pre-trained ResNetV1-50 checkpoint is saved to.
 
 # Where the training (fine-tuned) checkpoint and logs will be saved to.
-TRAIN_DIR=/home/n-z/zzhang52/Insight/runs/teachers
+TRAIN_DIR=/home/zzhang52/Insight/runs/3_teachers_100th
 rm -rf $TRAIN_DIR
 mkdir $TRAIN_DIR
 
 # Where the dataset is saved to.
-DATA_DIR=/home/paperspace/Insight/CXR/list_all
+DATA_DIR=/home/zzhang52/Insight/CXR/3_part_100th
 
-IMAGE_DIR=/home/paperspace/Insight/CXR/images
+IMAGE_DIR=/home/zzhang52/Insight/CXR/images/all
 
-PARTITION_NUM=5
+PARTITION_NUM=3
 
-NUM_EPOCH=50
+NUM_EPOCH=3
 
-BATCH_SIZE=128
+BATCH_SIZE=32
 
 OPTIMIZER=adam
 

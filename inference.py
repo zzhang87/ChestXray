@@ -4,10 +4,10 @@ import pandas as pd
 import cv2
 import os
 import json
-import PIL
 import pdb
 import argparse
 import math
+from vis.visualization import visualize_cam, overlay
 from shutil import rmtree
 
 from sklearn import metrics
@@ -19,27 +19,19 @@ from keras.applications.resnet50 import preprocess_input as resnet_pre
 from keras.applications.densenet import preprocess_input as densnet_pre
 from datagenerator import ImageDataGenerator
 
-from utils import load_filelist, load_model
+from utils import load_model
 
 
 def main():
 	ap = argparse.ArgumentParser()
 	ap.add_argument('--model_dir',
 			help = 'Directory to model checkpoints and config. The latest checkpoint will be evaluated.')
-	ap.add_argument('--data_dir', help = 'Directory to the file lists and labels.')
 	ap.add_argument('--ckpt_path', help = 'Path to a specific checkpoint to evaluate.')
 	ap.add_argument('--image_dir', help = 'Directory to the raw images.')
-	ap.add_argument('--partition_id', type = int, default = 1,
-					help = 'Partition index (1-based).')
-	ap.add_argument('--partition_num', type = int, default = 1,
-					help = 'Number of partitions.')
-	ap.add_argument('--split_name', default = 'val',
-					help = "Dataset split to evaluate on. Either 'val' or 'test'.")
-	ap.add_argument('--batch_size', type = int, default = 32)
 
 	args = ap.parse_args()
 
-	with open(os.path.join(args.data_dir, 'label_map.json'), 'r') as f:
+	with open(os.path.join(args.model_dir, 'label_map.json'), 'r') as f:
 		label_map = json.load(f)
 
 	num_class = len(list(label_map.keys()))
@@ -61,31 +53,34 @@ def main():
 		'densenet': densnet_pre
 	}
 
-	datagen = ImageDataGenerator(preprocessing_function = preprocess_input[model_name])
+	image = cv2.imread(args.image_dir)
 
-	X, Y = load_filelist(args.data_dir, args.split_name, args.partition_id, args.partition_num)
+	img = cv2.resize(image, (image_size, image_size))
 
-	predictions = model.predict_generator(datagen.flow_from_list(x = X, directory = args.image_dir,
-								batch_size = args.batch_size, target_size = (image_size, image_size),
-								shuffle = False))
+	img = preprocess_input[model_name](img.astype(np.float32))
 
-	labels = np.array(Y)
+	img = np.expand_dims(img, axis = 0)
 
-	auc_scores = {}
+	predictions = np.squeeze(model.predict(img))
+
+	cv2.namedWindow("ChestXray", cv2.WINDOW_NORMAL)
 
 	for key, value in label_map.items():
-		pred = predictions[:,int(key)]
-		label = labels[:,int(key)]
 
-		if len(np.unique(label)) == 1:
-			auc_scores[value] = np.nan
+		heatmap = visualize_cam(model, layer_idx = -1, filter_indices = int(key), seed_input = img)
 
-		else:
-			auc_scores[value] = metrics.roc_auc_score(label, pred)
+		heatmap = cv2.resize(heatmap, image.shape[:2])
 
-	with open(os.path.join(model_config['model_dir'],
-				'{}_auc_scores_{:03}.json'.format(args.split_name, model_config['epoch'])), 'w') as f:
-		json.dump(auc_scores, f)
+		overlay_img = overlay(heatmap, image, alpha = 0.25)
+
+		cv2.putText(overlay_img, "{}: {:.2%}".format(value, predictions[int(key)]),
+					(30,30), cv2.FONT_HERSHEY_DUPLEX, 1.0, (255,255,255), 2)
+		cv2.imshow("ChestXray", overlay_img)
+		cv2.waitKey()
+
+		print('{}: {:.2%}'.format(value, predictions[int(key)]))
+
+	cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
