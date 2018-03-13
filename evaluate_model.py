@@ -98,7 +98,7 @@ def main():
 
 	predictions = model.predict_generator(datagen.flow_from_list(x = X, directory = args.image_dir,
 								batch_size = args.batch_size, target_size = (image_size, image_size),
-								shffle = False))
+								shuffle = False))
 
 	labels = np.array(Y)
 
