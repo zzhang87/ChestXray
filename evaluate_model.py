@@ -96,8 +96,9 @@ def main():
 
 	X, Y = load_filelist(args.data_dir, args.split_name, args.partition_id, args.partition_num)
 
-	predictions = model.predict_generator(datagen.flow_from_list(x=X, directory=args.image_dir,
-								batch_size = args.batch_size, target_size=(image_size, image_size)))
+	predictions = model.predict_generator(datagen.flow_from_list(x = X, directory = args.image_dir,
+								batch_size = args.batch_size, target_size = (image_size, image_size),
+								shffle = False))
 
 	labels = np.array(Y)
 
