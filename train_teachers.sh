@@ -38,11 +38,15 @@ DATA_DIR=/home/paperspace/Insight/CXR/list_all
 
 IMAGE_DIR=/home/paperspace/Insight/CXR/images
 
-PARTITION_NUM=1
+PARTITION_NUM=5
 
-NUM_EPOCH=100
+NUM_EPOCH=50
 
 BATCH_SIZE=128
+
+OPTIMIZER=adam
+
+LR=0.01
 
 
 #-----------------------Execute Commands------------------------------
@@ -58,6 +62,8 @@ python train_one_teacher.py \
   --partition_num=${PARTITION_NUM} \
   --batch_size=${BATCH_SIZE} \
   --num_epoch=${NUM_EPOCH} \
-  --model_name=${MODEL_NAME}
+  --model_name=${MODEL_NAME} \
+  --optimizer=${OPTIMIZER} \
+  --initial_lr=${LR}
 
 done
