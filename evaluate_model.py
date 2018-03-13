@@ -114,7 +114,7 @@ def main():
 		else:
 			auc_scores[value] = metrics.roc_auc_score(label, pred)
 
-	with open(os.path.join(args.model_dir, 'auc_scores.json'), 'w') as f:
+	with open(os.path.join(args.model_dir, '{}_auc_scores.json'.format(args.split_name)), 'w') as f:
 		json.dump(auc_scores, f)
 
 
