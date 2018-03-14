@@ -90,7 +90,7 @@ def main():
 	with open(os.path.join(args.data_dir, 'label_map.json'), 'r') as f:
 		label_map = json.load(f)
 
-	with open(os.path.join(args.teacher_dir, 'label_map.json'), 'w') as f:
+	with open(os.path.join(args.student_dir, 'label_map.json'), 'w') as f:
 		json.dump(label_map, f)
 
 	num_class = len(list(label_map.keys()))
@@ -119,11 +119,13 @@ def main():
 								batch_size = args.batch_size, target_size = (size, size),
 								shuffle = False))
 
+	for teacher in teachers:
+		del teacher
+	del teachers
+
 	Y = aggregate_teachers(Y)
 
 	Y_train = np.concatenate((np.array(Y_train), Y), axis = -1)
-
-	pdb.set_trace()
 
 	loss = weighted_binary_crossentropy(args.alpha)
 
