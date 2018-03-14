@@ -21,7 +21,7 @@ from keras.applications.resnet50 import preprocess_input as resnet_pre
 from keras.applications.densenet import preprocess_input as densnet_pre
 from datagenerator import ImageDataGenerator
 
-from utils import load_filelist, load_model, create_model, aggregate_teachers
+from utils import load_filelist, load_model, create_model, aggregate_teachers, weighted_binary_crossentropy
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -40,6 +40,9 @@ def main():
 					help = 'Partition index (1-based).')
 	ap.add_argument('--partition_num', type = int, default = 1,
 					help = 'Number of partitions.')
+	ap.add_argument('--alpha', type = float, default = 0.25,
+					help = """Weight factor for losses between true label and aggregated prediction.
+						(1 for true label and 0 for aggregated prediction.""")
 
 	args = ap.parse_args()
 
@@ -92,9 +95,6 @@ def main():
 
 	num_class = len(list(label_map.keys()))
 
-
-	student = create_model(student_config, image_size[args.model_name], label_map)
-
 	X_train, Y_train = load_filelist(args.data_dir, 'train', args.partition_id, args.partition_num)
 
 	X_val, Y_val = load_filelist(args.data_dir, 'val', args.partition_id, args.partition_num)
@@ -121,18 +121,26 @@ def main():
 
 	Y = aggregate_teachers(Y)
 
+	Y_train = np.concatenate((np.array(Y_train), Y), axis = -1)
+
+	pdb.set_trace()
+
+	loss = weighted_binary_crossentropy(args.alpha)
+
+	student = create_model(student_config, image_size[args.model_name], label_map, loss)
+
 	tensorbard = TensorBoard(args.student_dir)
 	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
 	earlystop = EarlyStopping(monitor = 'val_mauc', min_delta = 1e-3,
-								patience = args.num_epoch / 10, mode = 'max')
+								patience = max(5, args.num_epoch / 10), mode = 'max')
 	ckpt = ModelCheckpoint(os.path.join(args.student_dir, 'weights.{epoch:03d}-{val_mauc:.2f}.hdf5'),
 								monitor = 'val_mauc', save_best_only = True, mode = 'max')
 
 	size = image_size[args.model_name]
-	student.fit_generator(datagetn_aug.flow_from_list(x = X_train, y = Y, directory = args.image_dir,
+	student.fit_generator(datagetn_aug.flow_from_list(x = X_train, y = Y_train, directory = args.image_dir,
 							batch_size = args.batch_size, target_size = (size, size)), epochs = args.num_epoch,
 							validation_data = datagen.flow_from_list(x=X_val, y=Y_val, directory=args.image_dir,
-							batch_size = args.batch_size, target_size=(size, size)),
+							batch_size = args.batch_size/2, target_size=(size, size)),
 							validation_steps = math.ceil(len(X_val) / float(args.batch_size)),
 							verbose = 2, callbacks = [tensorbard, reducelr, earlystop, ckpt])
 

@@ -19,7 +19,7 @@ from keras.applications.resnet50 import ResNet50
 from keras.applications.densenet import DenseNet121
 from datagenerator import ImageDataGenerator
 
-def create_model(model_config, image_size, label_map):
+def create_model(model_config, image_size, label_map, loss = None):
 	model_map = {
 		'inception': InceptionV3,
 		'mobilenet': MobileNet,
@@ -49,7 +49,10 @@ def create_model(model_config, image_size, label_map):
 	metrics = [AUC(i) for i in range(num_class)]
 	metrics.append(mean_AUC(num_class))
 
-	model.compile(loss = 'binary_crossentropy', optimizer = optimizer, metrics = metrics)
+	if loss is None:
+		model.compile(loss = 'binary_crossentropy', optimizer = optimizer, metrics = metrics)
+	else:
+		model.compile(loss = loss, optimizer = optimizer, metrics = metrics)
 
 	return model
 
@@ -130,3 +133,23 @@ def auc(labels, predictions):
 
 def aggregate_teachers(predictions):
 	return np.mean(predictions, axis = 0)
+
+
+def weighted_binary_crossentropy(alpha):
+
+	def weighted_loss(y_true, y_pred):
+		num_class = tf.shape(y_pred)[1]
+		hard = keras.losses.binary_crossentropy(y_true[:,:num_class], y_pred)
+		soft = keras.losses.binary_crossentropy(y_true[:,num_class:], y_pred)
+
+		return alpha * hard + (1 - alpha) * soft
+
+	def loss(y_true, y_pred):
+		return keras.losses.binary_crossentropy(y_true, y_pred)
+		
+	def my_loss(y_true, y_pred):
+		return tf.cond(tf.equal(tf.shape(y_true)[1], tf.shape(y_pred)[1]),
+						lambda: loss(y_true, y_pred), lambda: weighted_loss(y_true, y_pred))
+
+
+	return my_loss
