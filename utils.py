@@ -153,3 +153,16 @@ def weighted_binary_crossentropy(alpha):
 
 
 	return my_loss
+
+
+def calc_weights(labels):
+	labels = np.array(labels).astype(np.float32)
+
+	freq = np.mean(labels, axis = 0)
+
+	inverse = 1. / freq
+
+	weights = {key: value for key, value in enumerate(inverse)}
+
+	return weights
+

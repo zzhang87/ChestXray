@@ -17,7 +17,7 @@ from keras.applications.resnet50 import preprocess_input as resnet_pre
 from keras.applications.densenet import preprocess_input as densnet_pre
 from datagenerator import ImageDataGenerator
 
-from utils import load_filelist, create_model
+from utils import load_filelist, create_model, calc_weights
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -35,6 +35,7 @@ def main():
 	ap.add_argument('--optimizer', default = 'SGD',
 					help = 'Optimizer to train the model. One of SGD, adam, or rmsprop.')
 	ap.add_argument('--initial_lr', type = float, default = 1e-2, help = 'Initial learning rate.')
+	ap.add_argument('--weight_loss', action = 'store_true')
 
 	args = ap.parse_args()
 
@@ -103,7 +104,14 @@ def main():
 	with open(os.path.join(args.train_dir, 'model_config.json'), 'w') as f:
 		json.dump(model_config, f)
 
+
 	model = create_model(model_config, image_size, label_map)
+
+	class_weight = None
+	if args.weight_loss:
+		class_weight = calc_weights(Y_train)
+
+	pdb.set_trace()
 
 	tensorbard = TensorBoard(args.train_dir)
 	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
@@ -118,7 +126,8 @@ def main():
 							validation_data = gen_val.flow_from_list(x=X_val, y=Y_val, directory=args.image_dir,
 							batch_size = args.batch_size, target_size=(image_size,image_size)),
 							validation_steps = math.ceil(len(X_val) / float(args.batch_size)),
-							verbose = 2, callbacks = [tensorbard, reducelr, earlystop, ckpt])
+							class_weight = class_weight, verbose = 2,
+							callbacks = [tensorbard, reducelr, earlystop, ckpt])
 
 
 if __name__ == "__main__":

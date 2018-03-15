@@ -4,13 +4,10 @@ import pandas as pd
 import cv2
 import os
 import json
-import io
-import PIL
 import pdb
 import argparse
 import math
 from shutil import rmtree
-import pandas as pd
 import tensorflow as tf
 
 import keras.backend as K
@@ -21,7 +18,8 @@ from keras.applications.resnet50 import preprocess_input as resnet_pre
 from keras.applications.densenet import preprocess_input as densnet_pre
 from datagenerator import ImageDataGenerator
 
-from utils import load_filelist, load_model, create_model, aggregate_teachers, weighted_binary_crossentropy
+from utils import load_filelist, load_model, create_model, aggregate_teachers,
+					weighted_binary_crossentropy, calc_weights
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -43,6 +41,7 @@ def main():
 	ap.add_argument('--alpha', type = float, default = 0.25,
 					help = """Weight factor for losses between true label and aggregated prediction.
 						(1 for true label and 0 for aggregated prediction.""")
+	ap.add_argument('--weight_loss', action = 'store_true')
 
 	args = ap.parse_args()
 
@@ -131,6 +130,10 @@ def main():
 
 	student = create_model(student_config, image_size[args.model_name], label_map, loss)
 
+	class_weight = None
+	if args.weight_loss:
+		class_weight = calc_weights(Y_train)
+
 	tensorbard = TensorBoard(args.student_dir)
 	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
 	earlystop = EarlyStopping(monitor = 'val_mauc', min_delta = 1e-3,
@@ -141,10 +144,12 @@ def main():
 	size = image_size[args.model_name]
 	student.fit_generator(datagetn_aug.flow_from_list(x = X_train, y = Y_train, directory = args.image_dir,
 							batch_size = args.batch_size, target_size = (size, size)), epochs = args.num_epoch,
+							steps_per_epoch = math.ceil(len(X_train) / float(args.batch_size)),
 							validation_data = datagen.flow_from_list(x=X_val, y=Y_val, directory=args.image_dir,
-							batch_size = args.batch_size/2, target_size=(size, size)),
+							batch_size = args.batch_size, target_size=(size, size)),
 							validation_steps = math.ceil(len(X_val) / float(args.batch_size)),
-							verbose = 2, callbacks = [tensorbard, reducelr, earlystop, ckpt])
+							class_weight = class_weight, verbose = 2,
+							callbacks = [tensorbard, reducelr, earlystop, ckpt])
 
 
 if __name__ == "__main__":
