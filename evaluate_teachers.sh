@@ -40,7 +40,6 @@ BATCH_SIZE=128
 
 for teacher in `seq 1 $PARTITION_NUM`
 do
-# Fine-tune only the new layers.
 python evaluate_model.py \
   --data_dir=${DATA_DIR} \
   --image_dir=${IMAGE_DIR} \
@@ -55,7 +54,6 @@ done
 
 for teacher in `seq 1 $PARTITION_NUM`
 do
-# Fine-tune only the new layers.
 python evaluate_model.py \
   --data_dir=${DATA_DIR} \
   --image_dir=${IMAGE_DIR} \

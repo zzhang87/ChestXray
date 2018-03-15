@@ -16,7 +16,7 @@ import keras.backend as K
 from keras.applications.inception_v3 import preprocess_input as inception_pre
 from keras.applications.mobilenet import preprocess_input as mobilenet_pre
 from keras.applications.resnet50 import preprocess_input as resnet_pre
-from keras.applications.densenet import preprocess_input as densnet_pre
+from keras.applications.densenet import preprocess_input as densenet_pre
 from datagenerator import ImageDataGenerator
 
 from utils import load_model
@@ -24,33 +24,33 @@ from utils import load_model
 
 def main():
 	ap = argparse.ArgumentParser()
-	ap.add_argument('--model_dir',
-			help = 'Directory to model checkpoints and config. The latest checkpoint will be evaluated.')
-	ap.add_argument('--ckpt_path', help = 'Path to a specific checkpoint to evaluate.')
-	ap.add_argument('--image_dir', help = 'Directory to the raw images.')
+	ap.add_argument('--ckpt_path', help = 'Path to the model checkpoint.')
+	ap.add_argument('--image_path', help = 'Path to the image to run inference on.')
 
 	args = ap.parse_args()
 
-	with open(os.path.join(args.model_dir, 'label_map.json'), 'r') as f:
+	model_dir = os.path.basename(args.ckpt_path)
+
+	with open(os.path.join(model_dir, 'label_map.json'), 'r') as f:
 		label_map = json.load(f)
 
 	num_class = len(list(label_map.keys()))
 
-	model, model_config = load_model(args.model_dir, args.ckpt_path)
+	model, model_config = load_model(model_dir, args.ckpt_path)
 
 	model_name = model_config['model_name']
 
 	if model_name in ['inception']:
 		image_size = 299
 
-	elif model_name in ['resnet', 'mobilenet', 'densenet']:
+	else:
 		image_size = 224
 
 	preprocess_input = {
 		'inception': inception_pre,
 		'resnet': resnet_pre,
 		'mobilenet': mobilenet_pre,
-		'densenet': densnet_pre
+		'densenet': densenet_pre
 	}
 
 	image = cv2.imread(args.image_dir)
