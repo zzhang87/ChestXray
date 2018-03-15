@@ -17,7 +17,7 @@ from keras.applications.resnet50 import preprocess_input as resnet_pre
 from keras.applications.densenet import preprocess_input as densnet_pre
 from datagenerator import ImageDataGenerator
 
-from utils import load_filelist, create_model, calc_weights
+from utils import load_filelist, create_model, calc_weights, bp_mll_loss
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -36,6 +36,7 @@ def main():
 					help = 'Optimizer to train the model. One of SGD, adam, or rmsprop.')
 	ap.add_argument('--initial_lr', type = float, default = 1e-2, help = 'Initial learning rate.')
 	ap.add_argument('--weight_loss', action = 'store_true')
+	ap.add_argument('--bp_mll', action = 'store_true')
 
 	args = ap.parse_args()
 
@@ -104,19 +105,20 @@ def main():
 	with open(os.path.join(args.train_dir, 'model_config.json'), 'w') as f:
 		json.dump(model_config, f)
 
+	loss = None
+	if args.bp_mll:
+		loss = bp_mll_loss
 
-	model = create_model(model_config, image_size, label_map)
+	model = create_model(model_config, image_size, label_map, loss)
 
 	class_weight = None
 	if args.weight_loss:
 		class_weight = calc_weights(Y_train)
 
-	pdb.set_trace()
-
 	tensorbard = TensorBoard(args.train_dir)
 	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
 	earlystop = EarlyStopping(monitor = 'val_mauc', min_delta = 1e-4,
-								patience = args.num_epoch / 10, mode = 'max')
+								patience = max(5, args.num_epoch / 10), mode = 'max')
 	ckpt = ModelCheckpoint(os.path.join(args.train_dir, 'weights.{epoch:03d}-{val_mauc:.2f}.hdf5'),
 								monitor = 'val_mauc', save_best_only = True, mode = 'max')
 
