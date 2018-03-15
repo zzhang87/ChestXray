@@ -14,7 +14,7 @@ from keras.callbacks import ProgbarLogger, TensorBoard, ReduceLROnPlateau, Early
 from keras.applications.inception_v3 import preprocess_input as inception_pre
 from keras.applications.mobilenet import preprocess_input as mobilenet_pre
 from keras.applications.resnet50 import preprocess_input as resnet_pre
-from keras.applications.densenet import preprocess_input as densnet_pre
+from keras.applications.densenet import preprocess_input as densenet_pre
 from datagenerator import ImageDataGenerator
 
 from utils import load_filelist, create_model, calc_weights, bp_mll_loss
@@ -73,7 +73,7 @@ def main():
 		'inception': inception_pre,
 		'resnet': resnet_pre,
 		'mobilenet': mobilenet_pre,
-		'densenet': densnet_pre
+		'densenet': densenet_pre
 	}
 
 	gen_train = ImageDataGenerator(rotation_range = 10,
