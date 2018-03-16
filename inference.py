@@ -29,7 +29,7 @@ def main():
 
 	args = ap.parse_args()
 
-	model_dir = os.path.basename(args.ckpt_path)
+	model_dir = os.path.dirname(args.ckpt_path)
 
 	with open(os.path.join(model_dir, 'label_map.json'), 'r') as f:
 		label_map = json.load(f)
@@ -53,7 +53,7 @@ def main():
 		'densenet': densenet_pre
 	}
 
-	image = cv2.imread(args.image_dir)
+	image = cv2.imread(args.image_path)
 
 	img = cv2.resize(image, (image_size, image_size))
 
