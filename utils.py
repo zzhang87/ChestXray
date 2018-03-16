@@ -101,7 +101,7 @@ def load_model(model_dir, ckpt_path):
 	model_config['model_dir'] = model_dir
 
 	custom_objects = {'auc': AUC(0), 'mauc': AUC(0), 'bp_mll_loss': bp_mll_loss,
-						'weighted_binary_crossentropy': weighted_binary_crossentropy(0.5)}
+						'my_loss': weighted_binary_crossentropy(0.5)}
 
 	if model_config['model_name'] == 'mobilenet':
 		custom_objects['relu6'] = relu6

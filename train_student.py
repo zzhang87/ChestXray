@@ -69,7 +69,10 @@ def main():
 	teachers = []
 
 	for directory in teacher_dir:
-		teacher, config = load_model(os.path.join(args.teacher_dir, directory))
+		directory = os.path.join(args.teacher_dict, directory)
+		ckpts = [x for x in os.listdir(directory) if 'hdf5' in x]
+		ckpts.sort()
+		teacher, config = load_model(directory, ckpts[-1])
 		teacher_dict = {}
 		teacher_dict['model'] = teacher
 		model_name = config['model_name']
