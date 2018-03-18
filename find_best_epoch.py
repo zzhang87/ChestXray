@@ -6,9 +6,10 @@ import numpy as np
 def main():
 	ap = argparse.ArgumentParser()
 	ap.add_argument('--dir')
+	ap.add_argument('--split_name', default = 'val')
 	args = ap.parse_args()
 
-	file_list = [x for x in os.listdir(args.dir) if 'test' in x and 'auc' in x]
+	file_list = [x for x in os.listdir(args.dir) if args.split_name in x and 'auc' in x]
 
 	best = 0.
 	best_epoch = None
