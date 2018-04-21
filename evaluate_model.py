@@ -43,7 +43,7 @@ def main():
 
 	if args.ckpt_path is not None:
 		model_dir = os.path.dirname(args.ckpt_path)
-		ckpt_list = [args.ckpt_path]
+		ckpt_list = [os.path.basename(args.ckpt_path)]
 
 	else:
 		model_dir = args.model_dir
