@@ -80,7 +80,9 @@ The script will predict the probability of each pathology and overlay the class 
 
 ## Sample outputs
 <p align="center">
-  <img src="samples/mass.png" width="640"/>
-  <img src="samples/effusion.png" width="640"/>
+  <img src="samples/mass.png" width="320"/>
+  <img src="samples/effusion.png" width="320"/>
+  <img src="samples/Cardiomegaly.png" width="320"/>
+  <img src="samples/infiltration.png" width="320"/>
 </p>
 
