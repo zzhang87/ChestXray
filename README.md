@@ -35,6 +35,7 @@ python generate_filelist.py \
 Use `--help` to see the full list of flags. 
 
 **Training teacher models:**
+
 Modify the variables in `train_teachers.sh` to the appropriate values, and execute:
 ```
 bash train_teachers.sh
@@ -42,6 +43,7 @@ bash train_teachers.sh
 The script calls `train_one_teacher.py` and trains each teacher sequentially. 
 
 **Evaluating teacher models:**
+
 Modify the variables in `evaluate_teachers.sh` to the appropriate values, and execute:
 ```
 bash evaluate_teachers.sh
@@ -67,6 +69,7 @@ python evaluate_model.py \
 ```
 
 **Run inference:**
+
 Finally, the user can run sample inference using:
 ```
 python inference.py \
@@ -76,5 +79,8 @@ python inference.py \
 The script will predict the probability of each pathology and overlay the class activation map on the original image.
 
 ## Sample outputs
-
+<p align="center">
+  <img src="samples/mass.png" width="640"/>
+  <img src="samples/effusion.png" width="640"/>
+</p>
 
