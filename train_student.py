@@ -15,11 +15,10 @@ from keras.callbacks import ProgbarLogger, TensorBoard, ReduceLROnPlateau, Early
 from keras.applications.inception_v3 import preprocess_input as inception_pre
 from keras.applications.mobilenet import preprocess_input as mobilenet_pre
 from keras.applications.resnet50 import preprocess_input as resnet_pre
-from keras.applications.densenet import preprocess_input as densnet_pre
+from keras.applications.densenet import preprocess_input as densenet_pre
 from datagenerator import ImageDataGenerator
 
-from utils import load_filelist, load_model, create_model, aggregate_teachers,
-					weighted_binary_crossentropy, calc_weights
+from utils import load_filelist, load_model, create_model, aggregate_teachers, weighted_binary_crossentropy, calc_weights
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -54,7 +53,7 @@ def main():
 		'inception': inception_pre,
 		'resnet': resnet_pre,
 		'mobilenet': mobilenet_pre,
-		'densenet': densnet_pre
+		'densenet': densenet_pre
 	}
 
 	image_size = {
@@ -69,7 +68,10 @@ def main():
 	teachers = []
 
 	for directory in teacher_dir:
-		teacher, config = load_model(os.path.join(args.teacher_dir, directory))
+		directory = os.path.join(args.teacher_dir, directory)
+		ckpts = [x for x in os.listdir(directory) if 'hdf5' in x]
+		ckpts.sort()
+		teacher, config = load_model(directory, ckpts[-1])
 		teacher_dict = {}
 		teacher_dict['model'] = teacher
 		model_name = config['model_name']

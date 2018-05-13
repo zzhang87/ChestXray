@@ -90,46 +90,26 @@ def mean_AUC(num_class):
 	return mauc
 
 
-def load_model(model_dir, ckpt_path = None):
-	assert(model_dir is not None or ckpt_path is not None)
-
-	if ckpt_path is not None:
-		model_dir = os.path.dirname(ckpt_path)
-
-	else:
-		ckpts = [x for x in os.listdir(model_dir) if 'hdf5' in x]
-		ckpts.sort()
-		ckpt_path = os.path.join(model_dir, ckpts[-1])
-
+def load_model(model_dir, ckpt_path):
 	with open(os.path.join(model_dir, 'model_config.json'), 'r') as f:
 		model_config = json.load(f)
 
-	basename = os.path.basename(ckpt_path)
-
-	epoch = basename.replace('-', '.').split('.')
+	epoch = ckpt_path.replace('-', '.').split('.')
 	epoch = int(epoch[1])
 
 	model_config['epoch'] = epoch
 	model_config['model_dir'] = model_dir
 
-	custom_objects = {'auc': auc, 'mauc': auc}
+	custom_objects = {'auc': AUC(0), 'mauc': AUC(0), 'bp_mll_loss': bp_mll_loss,
+						'my_loss': weighted_binary_crossentropy(0.5)}
 
 	if model_config['model_name'] == 'mobilenet':
 		custom_objects['relu6'] = relu6
 		custom_objects['DepthwiseConv2D'] = DepthwiseConv2D
 
-	model = keras.models.load_model(ckpt_path, custom_objects = custom_objects)
+	model = keras.models.load_model(os.path.join(model_dir, ckpt_path), custom_objects = custom_objects)
 
 	return model, model_config
-
-
-def auc(labels, predictions):
-	score, up_opt = tf.metrics.auc(labels, predictions)
-	K.get_session().run(tf.local_variables_initializer())
-	with tf.control_dependencies([up_opt]):
-		score = tf.identity(score)
-	return score
-
 
 def aggregate_teachers(predictions):
 	return np.mean(predictions, axis = 0)
@@ -166,3 +146,47 @@ def calc_weights(labels):
 
 	return weights
 
+# bp mll loss function
+# y_true, y_pred must be 2D tensors of shape (batch dimension, number of labels)
+# y_true must satisfy y_true[i][j] == 1 iff sample i has label j
+def bp_mll_loss(y_true, y_pred):
+ 
+    # get true and false labels
+    y_i = K.equal(y_true, K.ones_like(y_true))
+    y_i_bar = K.not_equal(y_true, K.ones_like(y_true))
+    
+    # cast to float as keras backend has no logical and
+    y_i = K.cast(y_i, dtype='float32')
+    y_i_bar = K.cast(y_i_bar, dtype='float32')
+
+    # get indices to check
+    truth_matrix = pairwise_and(y_i, y_i_bar)
+
+    # calculate all exp'd differences
+    sub_matrix = pairwise_sub(y_pred, y_pred)
+    exp_matrix = K.exp(-sub_matrix)
+
+    # check which differences to consider and sum them
+    sparse_matrix = exp_matrix * truth_matrix
+    sums = K.sum(sparse_matrix, axis=[1,2])
+
+    # get normalizing terms and apply them
+    y_i_sizes = K.sum(y_i, axis=1)
+    y_i_bar_sizes = K.sum(y_i_bar, axis=1)
+    normalizers = y_i_sizes * y_i_bar_sizes
+    results = sums / normalizers
+
+    # sum over samples
+    return K.mean(results)
+
+# compute pairwise differences between elements of the tensors a and b
+def pairwise_sub(a, b):
+    column = K.expand_dims(a, 2)
+    row = K.expand_dims(b, 1)
+    return column - row
+
+# compute pairwise logical and between elements of the tensors a and b
+def pairwise_and(a, b):
+    column = K.expand_dims(a, 2)
+    row = K.expand_dims(b, 1)
+    return K.minimum(column, row)
