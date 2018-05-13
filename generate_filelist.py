@@ -26,9 +26,10 @@ def extract(files, record, class_name_to_ids):
 	for entry in record:
 		image = entry[0]
 		findings = entry[1]
-		labels = np.zeros(len(class_name_to_ids.keys()), dtype = int)
-		for label in findings:
-			labels[class_name_to_ids[label]] = 1
+		# labels = np.zeros(len(class_name_to_ids.keys()), dtype = int)
+		labels = np.zeros((1), dtype = int)
+		if "Pneumothorax" in findings:
+			labels[0] = 1
 
 		files.append((image, labels))
 
@@ -41,6 +42,8 @@ def main():
 					help = "Directory to store the output dataset")
 	ap.add_argument("--data_log", type = str, required = True,
 					help = "Directory to the data log file")
+	ap.add_argument("--image_dir", type = str,
+					help = "Directory to the image files")
 	ap.add_argument("--val_ratio", type = float, default = 0.1,
 					help = "Percentage of data reserved for validation (in decimal)")
 	ap.add_argument("--test_ratio", type = float, default = 0.2,
@@ -51,6 +54,16 @@ def main():
 					help = "Number of partitions to create")
 					
 	args = ap.parse_args()
+
+	if args.image_dir is not None:
+		image_dir = os.path.abspath(args.image_dir)
+		shards = os.listdir(image_dir)
+		subdir = {}
+
+		for shard in shards:
+			idx = int(os.path.basename(shard))
+			shard_dir = os.path.join(image_dir, shard)
+			subdir[idx] = set(os.listdir(shard_dir))
 
 	log = pd.read_csv(args.data_log)
 	patient_map = {}
@@ -63,6 +76,12 @@ def main():
 			continue
 			
 		image = log['Image Index'][i]
+		if args.image_dir is not None:
+			for idx, files in subdir.items():
+				if image in files:
+					image = os.path.join(str(idx), image)
+					break
+
 		labels = log['Finding Labels'][i].split('|')
 
 		if patient_id not in patient_map.keys():
@@ -128,7 +147,8 @@ def main():
 	with open(os.path.join(args.out_dir, "num_samples.json"), 'w') as f:
 		json.dump(num_samples, f)
 
-	label_map = {int(value) : key for key, value in class_name_to_ids.items()}
+	# label_map = {int(value) : key for key, value in class_name_to_ids.items()}
+	label_map = {0: "pneumothorax"}
 
 	with open(os.path.join(args.out_dir, "label_map.json"), 'w') as f:
 		json.dump(label_map, f)
