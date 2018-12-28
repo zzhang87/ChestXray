@@ -93,7 +93,11 @@ def main():
 				auc_scores[value] = np.nan
 
 			else:
-				auc_scores[value] = metrics.roc_auc_score(label, pred)
+				auc_scores[value] = {}
+				auc_scores[value]["auc"] = metrics.roc_auc_score(label, pred)
+				fpr, tpr, _ = metrics.roc_curve(label, pred)
+				auc_scores[value]["fpr"] = list(fpr)
+				auc_scores[value]["tpr"] = list(tpr)
 
 		with open(os.path.join(model_dir,
 					'{}_auc_scores_{:03}.json'.format(args.split_name, model_config['epoch'])), 'w') as f:

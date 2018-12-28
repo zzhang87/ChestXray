@@ -60,7 +60,7 @@ def load_filelist(directory, split_name, partition_id, partition_num):
 	path = os.path.join(directory, '{}_{:03}-of-{:03}.csv'.format(split_name, partition_id, partition_num))
 	df = pd.read_csv(path, delimiter = '\t', header = None, names = ['image', 'label'])
 
-	labels = [map(float, label[1:-1].split(' ')) for label in df['label']]
+	labels = [list(map(float, label[1:-1].split(' '))) for label in df['label']]
 
 	return df['image'].tolist(), labels
 
@@ -94,13 +94,15 @@ def load_model(model_dir, ckpt_path):
 	with open(os.path.join(model_dir, 'model_config.json'), 'r') as f:
 		model_config = json.load(f)
 
-	epoch = ckpt_path.replace('-', '.').split('.')
+	epoch = os.path.basename(ckpt_path).replace('-', '.').split('.')
 	epoch = int(epoch[1])
 
 	model_config['epoch'] = epoch
 	model_config['model_dir'] = model_dir
 
-	custom_objects = {'auc': AUC(0), 'mauc': AUC(0), 'bp_mll_loss': bp_mll_loss,
+	custom_objects = {'auc': AUC(0), 'mauc': AUC(0), 
+						'val_auc': AUC(0), 'val_mauc': AUC(0),
+						'bp_mll_loss': bp_mll_loss,
 						'my_loss': weighted_binary_crossentropy(0.5)}
 
 	if model_config['model_name'] == 'mobilenet':

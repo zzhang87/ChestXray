@@ -17,7 +17,7 @@ from keras.applications.resnet50 import preprocess_input as resnet_pre
 from keras.applications.densenet import preprocess_input as densenet_pre
 from datagenerator import ImageDataGenerator
 
-from utils import load_filelist, create_model, calc_weights, bp_mll_loss
+from utils import load_filelist, create_model, calc_weights, bp_mll_loss, load_model
 
 def main():
 	ap = argparse.ArgumentParser()
@@ -28,27 +28,31 @@ def main():
 	ap.add_argument('--partition_num', type = int, default = 1,
 					help = 'Number of partitions.')
 	ap.add_argument('--train_dir', help = 'Directory the trained model and events will be saved to.')
-	ap.add_argument('--model_name', default = 'inception',
-					help = 'Network architecture to use. One of inception, resnet, densenet, or mobilenet.')
+	ap.add_argument('--ckpt_path', type = str, help = 'Path to the saved model checkpoint')
 	ap.add_argument('--batch_size', type = int, default = 32)
 	ap.add_argument('--num_epoch', type = int, default = 1)
-	ap.add_argument('--optimizer', default = 'SGD',
-					help = 'Optimizer to train the model. One of SGD, adam, or rmsprop.')
-	ap.add_argument('--initial_lr', type = float, default = 1e-2, help = 'Initial learning rate.')
+	#ap.add_argument('--optimizer', default = 'SGD',
+					# help = 'Optimizer to train the model. One of SGD, adam, or rmsprop.')
+	#ap.add_argument('--initial_lr', type = float, default = 1e-2, help = 'Initial learning rate.')
 	ap.add_argument('--weight_loss', action = 'store_true')
-	ap.add_argument('--bp_mll', action = 'store_true')
+	#ap.add_argument('--bp_mll', action = 'store_true')
 
 	args = ap.parse_args()
+	model_dir = os.path.dirname(args.ckpt_path)
+	with open(os.path.join(model_dir, 'model_config.json'), 'r') as f:
+		model_config = json.load(f)
 
-	assert(args.model_name in ['inception', 'resnet', 'mobilenet', 'densenet'])
-	assert(args.optimizer in ['SGD', 'adam', 'rmsprop'])
+	model_name = model_config['model_name']
+
+	assert(model_name in ['inception', 'resnet', 'mobilenet', 'densenet'])
+	#assert(args.optimizer in ['SGD', 'adam', 'rmsprop'])
 
 	if os.path.isdir(args.train_dir):
 		rmtree(args.train_dir)
 
 	os.mkdir(args.train_dir)
 
-	if args.model_name in ['inception']:
+	if model_name in ['inception']:
 		image_size = 299
 
 	else:
@@ -61,9 +65,6 @@ def main():
 		json.dump(label_map, f)
 
 	num_class = len(list(label_map.keys()))
-
-	with open(os.path.join(args.data_dir, 'num_samples.json'), 'r') as f:
-		num_samples = json.load(f)
 
 	X_train, Y_train = load_filelist(args.data_dir, 'train', args.partition_id, args.partition_num)
 
@@ -83,45 +84,26 @@ def main():
 								fill_mode = 'constant',
 								cval = 0,
 								horizontal_flip = True,
-								preprocessing_function = preprocess_input[args.model_name])
+								preprocessing_function = preprocess_input[model_name])
 
-	gen_val = ImageDataGenerator(preprocessing_function = preprocess_input[args.model_name])
+	gen_val = ImageDataGenerator(preprocessing_function = preprocess_input[model_name])
 
-	# for x, y in gen_train.flow_from_list(x=X_train, y=Y_train, directory=args.image_dir,
-	# 						batch_size = args.batch_size, target_size=(image_size,image_size)):
-	# 	for i in range(x.shape[0]):
-	# 		img = x[i].astype(np.uint8)
-	# 		label = y[i]
-
-	# 		cv2.imshow("show", img)
-	# 		cv2.waitKey(600)
-	# 		cv2.destroyAllWindows()
-	# 		print(label)
-
-	model_config = {'model_name': args.model_name,
-					'optimizer': args.optimizer,
-					'initial_lr': args.initial_lr}
+	model, model_config = load_model(model_dir, args.ckpt_path)
 
 	with open(os.path.join(args.train_dir, 'model_config.json'), 'w') as f:
 		json.dump(model_config, f)
 
-	loss = None
-	if args.bp_mll:
-		loss = bp_mll_loss
-
-	model = create_model(model_config, image_size, label_map, loss)
-
 	class_weight = None
 	if args.weight_loss:
 		positive_ratio = np.mean(Y_train)
-		class_weight = {0: positive_ratio, 1: 1 - positive_ratio} 
+		class_weight = {0: positive_ratio, 1: 1 - positive_ratio}
 
 	tensorbard = TensorBoard(args.train_dir)
 	reducelr = ReduceLROnPlateau(monitor = 'loss', factor = 0.9, patience = 5, mode = 'min')
-	earlystop = EarlyStopping(monitor = 'val_mauc', min_delta = 1e-4,
+	earlystop = EarlyStopping(monitor = 'val_auc_1', min_delta = 1e-4,
 								patience = max(5, args.num_epoch / 10), mode = 'max')
-	ckpt = ModelCheckpoint(os.path.join(args.train_dir, 'weights.{epoch:03d}-{val_mauc:.2f}.hdf5'),
-								monitor = 'val_mauc', save_best_only = True, mode = 'max')
+	ckpt = ModelCheckpoint(os.path.join(args.train_dir, 'weights.{epoch:03d}-{val_auc_1:.2f}.hdf5'),
+								monitor = 'val_auc_1', save_best_only = True, mode = 'max')
 
 	history = model.fit_generator(gen_train.flow_from_list(x=X_train, y=Y_train, directory=args.image_dir,
 							batch_size = args.batch_size, target_size=(image_size,image_size)), epochs = args.num_epoch,
@@ -130,7 +112,8 @@ def main():
 							batch_size = args.batch_size, target_size=(image_size,image_size)),
 							validation_steps = math.ceil(len(X_val) / float(args.batch_size)),
 							class_weight = class_weight, verbose = 2,
-							callbacks = [tensorbard, reducelr, earlystop, ckpt])
+							callbacks = [tensorbard, reducelr, earlystop, ckpt],
+							initial_epoch = model_config['epoch'])
 
 
 if __name__ == "__main__":
